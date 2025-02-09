@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HisabKitab</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="{{ 'dark-mode' if current_user.is_authenticated and current_user.dark_mode else '' }}">
+  <nav class="navbar">
+    <div class="logo">HisabKitab</div>
+    <ul class="nav-links">
+      {% if current_user.is_authenticated %}
+      <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+      <li><a href="{{ url_for('add_transaction') }}">Add Transaction</a></li>
+      <li><a href="{{ url_for('profile') }}">Profile</a></li>
+      <li><a href="{{ url_for('reports') }}">Reports</a></li>
+      <li><a href="{{ url_for('user_settings') }}">Settings</a></li>
+      <li><a href="{{ url_for('about') }}">About</a></li>
+      <li><a href="{{ url_for('export_csv') }}">Export CSV</a></li>
+      <li><a href="{{ url_for('backup') }}">Backup JSON</a></li>
+      <li><a href="{{ url_for('logout') }}">Logout</a></li>
+    
+
+      {% else %}
+      <li><a href="{{ url_for('login') }}">Login</a></li>
+      <li><a href="{{ url_for('register') }}">Register</a></li>
+      {% endif %}
+    </ul>
+    <button id="menu-toggle" class="menu-toggle" title="Toggle Menu">☰</button>
+    <button id="toggleDarkMode" class="toggle-dark-mode" title="Toggle Dark Mode">🌙</button>
+  </nav>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="toast-container">
+      {% for category, message in messages %}
+      <div class="toast toast-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="content">
+    {% block content %}{% endblock %}
+  </div>
+
+  {% if current_user.is_authenticated %}
+  <!-- Other nav links -->
+  <li><a href="{{ url_for('manage_categories') }}">Categories</a></li>
+{% endif %}
+
+{% if current_user.is_authenticated %}
+  <!-- Other nav links -->
+  <li><a href="{{ url_for('archived_transactions') }}">Archived Transactions</a></li>
+{% endif %}
+
+
+  <button id="back-to-top" title="Back to top">↑</button>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <!-- Transaction Details Modal -->
+<div id="transactionModal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal">&times;</span>
+    <h2>Transaction Details</h2>
+    <div id="modalBody">
+      <!-- Transaction details will be injected here via JavaScript -->
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

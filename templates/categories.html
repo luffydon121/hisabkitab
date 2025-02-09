@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="form-container">
+  <h1>Manage Categories</h1>
+  <!-- Form to add a new category -->
+  <form method="post">
+    <div class="form-group">
+      <label>Add New Category</label>
+      <input type="text" name="category" placeholder="Category name" required>
+    </div>
+    <button type="submit">Add Category</button>
+  </form>
+  <h2>Your Categories</h2>
+  <ul>
+    {% for cat in categories %}
+      <li>
+        {{ cat.name }}
+        <form action="{{ url_for('delete_category', cat_id=cat.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this category?');">
+          <button type="submit" style="background:none; border:none; color:var(--danger-color); cursor:pointer;">Delete</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

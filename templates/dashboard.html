@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+  <header class="dashboard-header">
+    <h1>Financial Dashboard</h1>
+  </header>
+
+  <!-- Filter Section -->
+  <section class="filter-section">
+    <form action="{{ url_for('dashboard') }}" method="get" class="filter-form">
+      <input type="text" name="q" placeholder="Search transactions..." value="{{ search_query or '' }}" aria-label="Search transactions">
+      <div class="date-inputs">
+        <div class="date-group">
+          <label for="start_date">From:</label>
+          <input type="date" name="start_date" value="{{ start_date or '' }}">
+        </div>
+        <div class="date-group">
+          <label for="end_date">To:</label>
+          <input type="date" name="end_date" value="{{ end_date or '' }}">
+        </div>
+        <!-- New: Transaction Type Filter -->
+        <div class="date-group">
+          <label for="type">Type:</label>
+          <select name="type">
+            <option value="">All</option>
+            <option value="income" {% if request.args.get('type') == 'income' %}selected{% endif %}>Income</option>
+            <option value="expense" {% if request.args.get('type') == 'expense' %}selected{% endif %}>Expense</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="filter-btn">Apply Filters</button>
+    </form>
+  </section>
+
+  <!-- Metrics Section -->
+  <section class="metrics-section">
+    <div class="stats-grid">
+      <div class="metric-card income">
+        <h3>Total Income</h3>
+        <p class="metric-value">${{ total_income | round(2) }}</p>
+      </div>
+      <div class="metric-card expense">
+        <h3>Total Expenses</h3>
+        <p class="metric-value">${{ total_expense | round(2) }}</p>
+      </div>
+      <div class="metric-card net">
+        <h3>Net Balance</h3>
+        <p class="metric-value">${{ net | round(2) }}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Charts Section -->
+  <section class="charts-section">
+    <!-- Left Chart: Income vs. Expense Bar Chart -->
+    <div class="chart-wrapper" id="chart-income-expense">
+      <div class="chart-header">
+        <h4>Income vs Expenses</h4>
+      </div>
+      <canvas id="incomeExpenseChart"></canvas>
+    </div>
+    <!-- Right Chart: Expense Breakdown Doughnut Chart -->
+    <div class="chart-wrapper" id="chart-category">
+      <div class="chart-header">
+        <h4>Expense Breakdown</h4>
+      </div>
+      <div class="doughnut-center-label">
+        <span class="total-label">Total</span>
+        <span class="total-amount">${{ total_expense | round(2) }}</span>
+      </div>
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Transactions Table Section -->
+  <section class="transactions-section">
+    <div class="table-header">
+      <h2>Recent Transactions</h2>
+      <a href="{{ url_for('add_transaction') }}" class="add-button">+ Add New</a>
+    </div>
+    <table class="transactions-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in transactions.items %}
+        <tr class="{% if tx.archived %}archived{% endif %}" data-receipt="{{ tx.receipt or '' }}">
+          <td>{{ tx.date.strftime('%b %d, %Y') }}</td>
+          <td><span class="type-badge {{ tx.type|lower }}">{{ tx.type }}</span></td>
+          <td>{{ tx.category }}</td>
+          <td>${{ tx.amount | round(2) }}</td>
+          <td>{{ tx.description or '-' }}</td>
+          <td class="actions">
+            <a href="{{ url_for('edit_transaction', tx_id=tx.id) }}" class="icon-edit">✎</a>
+            <form action="{{ url_for('delete_transaction', tx_id=tx.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Permanently delete this transaction?');">
+              <button type="submit" class="icon-delete">🗑</button>
+            </form>
+            <form action="{{ url_for('archive_transaction', tx_id=tx.id) }}" method="post" style="display:inline;">
+              <button type="submit" class="icon-archive">
+                {% if tx.archived %}
+                  Unarchive
+                {% else %}
+                  Archive
+                {% endif %}
+              </button>
+            </form>
+            <!-- New: View Button -->
+            <button type="button" class="icon-view" data-tx-id="{{ tx.id }}">View</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="no-data">No transactions found</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="pagination">
+      {% if transactions.has_prev %}
+        <a href="{{ url_for('dashboard', page=transactions.prev_num, q=search_query, start_date=start_date, end_date=end_date) }}" class="page-link">« Previous</a>
+      {% endif %}
+      <span class="current-page">Page {{ transactions.page }} of {{ transactions.pages }}</span>
+      {% if transactions.has_next %}
+        <a href="{{ url_for('dashboard', page=transactions.next_num, q=search_query, start_date=start_date, end_date=end_date) }}" class="page-link">Next »</a>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<!-- Transaction Details Modal -->
+<div id="transactionModal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal">&times;</span>
+    <h2>Transaction Details</h2>
+    <div id="modalBody">
+      <!-- Details will be injected by JavaScript -->
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js and Custom JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script>
+  // Register Chart.js plugins
+  Chart.register(ChartDataLabels);
+
+  // Income vs. Expense Bar Chart
+  const ctxIncomeExpense = document.getElementById('incomeExpenseChart').getContext('2d');
+  new Chart(ctxIncomeExpense, {
+    type: 'bar',
+    data: {
+      labels: ['Income', 'Expense'],
+      datasets: [{
+        data: [{{ total_income|tojson }}, {{ total_expense|tojson }}],
+        backgroundColor: ['#4CAF50', '#F44336'],
+        borderColor: ['#388E3C', '#D32F2F'],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: function(value) { return '$' + value; } }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              return ctx.label + ': $' + ctx.raw.toLocaleString();
+            }
+          }
+        },
+        datalabels: {
+          color: '#fff',
+          font: { weight: 'bold' },
+          formatter: function(value) { return '$' + value.toLocaleString(); }
+        }
+      }
+    }
+  });
+
+  // Expense Breakdown Doughnut Chart
+  const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+  const categoryChart = new Chart(ctxCategory, {
+    type: 'doughnut',
+    data: {
+      labels: {{ categories|tojson }},
+      datasets: [{
+        data: {{ category_amounts|tojson }},
+        backgroundColor: [
+          '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+          '#FF9F40', '#8A2BE2', '#00CED1', '#FF4500', '#2E8B57'
+        ],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { boxWidth: 20, padding: 15 }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              return ctx.label + ': $' + ctx.raw.toFixed(2);
+            }
+          }
+        },
+        datalabels: {
+          formatter: function(value, ctx) {
+            const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+            return ((value / total) * 100).toFixed(1) + '%';
+          },
+          color: '#fff',
+          font: { size: 12, weight: 'bold' },
+          textShadowBlur: 8,
+          textShadowColor: 'rgba(0,0,0,0.5)'
+        }
+      },
+      animation: { animateScale: true, animateRotate: true }
+    }
+  });
+
+  // Update center label on hover for the doughnut chart
+  categoryChart.options.onHover = function(e, elements) {
+    const centerLabel = document.querySelector('.doughnut-center-label');
+    if (elements.length > 0) {
+      const index = elements[0].index;
+      centerLabel.innerHTML = '<span class="category-label">' + categoryChart.data.labels[index] + '</span>' +
+                              '<span class="category-value">$' + categoryChart.data.datasets[0].data[index].toFixed(2) + '</span>';
+    } else {
+      centerLabel.innerHTML = '<span class="total-label">Total</span>' +
+                              '<span class="total-amount">$' + {{ total_expense|round(2)|tojson }} + '</span>';
+    }
+  };
+
+  // Modal functionality for the "View" button
+  document.addEventListener("DOMContentLoaded", function() {
+    const viewButtons = document.querySelectorAll(".icon-view");
+    const modal = document.getElementById("transactionModal");
+    const modalBody = document.getElementById("modalBody");
+    const closeModal = document.querySelector(".close-modal");
+
+    viewButtons.forEach(button => {
+      button.addEventListener("click", function(e) {
+        e.stopPropagation();
+        const row = this.closest("tr");
+        const cells = row.querySelectorAll("td");
+        const date = cells[0].innerText;
+        const type = cells[1].innerText;
+        const category = cells[2].innerText;
+        const amount = cells[3].innerText;
+        const description = cells[4].innerText;
+        const receipt = row.dataset.receipt || "";
+        let imageHtml = "";
+        if(receipt) {
+          imageHtml = `<p><strong>Receipt:</strong><br><img src="/static/uploads/${receipt}" alt="Receipt" style="max-width:100%;"></p>`;
+        }
+        modalBody.innerHTML = `
+          <p><strong>Date:</strong> ${date}</p>
+          <p><strong>Type:</strong> ${type}</p>
+          <p><strong>Category:</strong> ${category}</p>
+          <p><strong>Amount:</strong> ${amount}</p>
+          <p><strong>Description:</strong> ${description}</p>
+          ${imageHtml}
+        `;
+        modal.style.display = "block";
+      });
+    });
+
+    closeModal.addEventListener("click", function() {
+      modal.style.display = "none";
+    });
+
+    window.addEventListener("click", function(e) {
+      if (e.target === modal) {
+        modal.style.display = "none";
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="form-container">
+  <h1>Add Transaction</h1>
+  <form method="post" enctype="multipart/form-data">
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" name="date" required>
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <select name="type" required>
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <input type="text" name="category" required placeholder="Category">
+    </div>
+    <div class="form-group">
+      <label>Amount</label>
+      <input type="number" step="0.01" name="amount" required placeholder="Amount">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" placeholder="Optional description"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Recurring</label>
+      <select name="recurring">
+        <option value="none" selected>None</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+    </div>
+    <!-- NEW: Receipt Image Upload Field -->
+    <div class="form-group">
+      <label>Receipt Image (optional)</label>
+      <input type="file" name="receipt" accept=".png,.jpg,.jpeg,.gif">
+    </div>
+    <button type="submit">Add Transaction</button>
+  </form>
+</div>
+{% endblock %}

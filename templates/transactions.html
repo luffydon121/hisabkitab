@@ -1,0 +1,47 @@
+<!-- templates/transactions.html -->
+{% extends "base.html" %}
+{% block content %}
+<h2>Your Transactions</h2>
+<a href="{{ url_for('transactions.add_transaction') }}">Add New Transaction</a>
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Category</th>
+            <th>Amount</th>
+            <th>Tax</th>
+            <th>Description</th>
+            <th>Tags</th>
+            <th>Recurring</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tx in transactions.items %}
+        <tr>
+            <td>{{ tx.date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ tx.type }}</td>
+            <td>{{ tx.category }}</td>
+            <td>{{ tx.amount }}</td>
+            <td>{{ tx.tax }}</td>
+            <td>{{ tx.description }}</td>
+            <td>{{ tx.tags }}</td>
+            <td>{{ tx.recurring }}</td>
+            <td>
+                <a href="{{ url_for('transactions.edit_transaction', tx_id=tx.id) }}">Edit</a>
+                <form action="{{ url_for('transactions.delete_transaction', tx_id=tx.id) }}" method="post" style="display:inline;">
+                    <button type="submit" onclick="return confirm('Are you sure?');">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if transactions.has_prev %}
+  <a href="{{ url_for('transactions.list_transactions', page=transactions.prev_num) }}">Previous</a>
+{% endif %}
+{% if transactions.has_next %}
+  <a href="{{ url_for('transactions.list_transactions', page=transactions.next_num) }}">Next</a>
+{% endif %}
+{% endblock %}

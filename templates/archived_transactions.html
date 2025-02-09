@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+  <h1>Archived Transactions</h1>
+  {% if transactions %}
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Category</th>
+        <th>Amount</th>
+        <th>Description</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tx in transactions %}
+      <tr>
+        <td>{{ tx.date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ tx.type }}</td>
+        <td>{{ tx.category }}</td>
+        <td>${{ tx.amount }}</td>
+        <td>{{ tx.description }}</td>
+        <td>
+          <!-- Reuse the same archive_transaction route to toggle (unarchive) -->
+          <form action="{{ url_for('archive_transaction', tx_id=tx.id) }}" method="post" style="display:inline;">
+            <button type="submit" style="background:none; border:none; color:var(--info-color); cursor:pointer;">
+              Unarchive
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No archived transactions found.</p>
+  {% endif %}
+</div>
+{% endblock %}
