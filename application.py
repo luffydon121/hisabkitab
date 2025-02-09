@@ -453,6 +453,10 @@ def internal_error(e):
 def about():
     return render_template('about.html')
 
+@app.route('/')
+def home():
+    return "HisabKitab is successfully running on Railway!"
+
 
 # ----------------------
 # Run the Application
